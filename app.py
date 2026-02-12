@@ -53,12 +53,89 @@ class ConfirmDialog(QDialog):
         self.yes_btn.clicked.connect(self.accept) # Built-in QDialog accept (returns 1)
         self.no_btn.clicked.connect(self.reject) # Built-in QDialog reject (returns 0)
 
+class AttractionDialog(QDialog):
+    reserved = pyqtSignal(str, str)
+
+    def __init__(self, name, time, detail, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+        self.setFixedSize(280, 350)
+        self.name = name
+        self.time = time
+        
+        self.setStyleSheet("""
+            QDialog { 
+                background-color: white; 
+                border: 2px solid #D3D3D3; 
+                border-radius: 20px; 
+            }
+            #Title { font-size: 20px; font-weight: bold; color: #333; }
+            #Detail { color: #666; font-size: 13px; }
+            #TimeLabel { color: #F07167; font-weight: bold; font-size: 18px; }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Header
+        title = QLabel(name)
+        title.setObjectName("Title")
+        title.setAlignment(Qt.AlignCenter)
+
+        # Placeholder for a larger "Image" or Icon
+        img_placeholder = QLabel("🎢")
+        img_placeholder.setStyleSheet("font-size: 60px; background: #F0F0F0; border-radius: 15px; padding: 20px;")
+        img_placeholder.setAlignment(Qt.AlignCenter)
+
+        # Description text
+        description = QLabel(detail)
+        description.setObjectName("Detail")
+        description.setWordWrap(True)
+        description.setAlignment(Qt.AlignCenter)
+
+        # Time Info
+        wait_time = QLabel(f"Current Wait: {time} min")
+        wait_time.setObjectName("TimeLabel")
+        wait_time.setAlignment(Qt.AlignCenter)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        
+        close_btn = QPushButton("Back")
+        close_btn.setStyleSheet("background-color: #969696; color: white; padding: 10px; border-radius: 8px;")
+        close_btn.clicked.connect(self.reject)
+
+        reserve_btn = QPushButton("Join Line")
+        reserve_btn.setStyleSheet("background-color: #7CFF6B; color: #333; padding: 10px; border-radius: 8px; font-weight: bold;")
+        reserve_btn.clicked.connect(self.handle_reserve)
+
+        btn_layout.addWidget(close_btn)
+        btn_layout.addWidget(reserve_btn)
+
+        layout.addWidget(title)
+        layout.addWidget(img_placeholder)
+        layout.addWidget(description)
+        layout.addWidget(wait_time)
+        layout.addStretch()
+        layout.addLayout(btn_layout)
+
+    def handle_reserve(self):
+        # Generate random place and emit signal back to main
+        place = str(random.randint(1, 100))
+        self.reserved.emit(self.time, place)
+        self.accept()
+
 class AttractionRow(QFrame):
     #Custom signal to pass up the time and place vars from the attraction
     signal = pyqtSignal(str, str)
 
-    def __init__(self, name, time):
+    def __init__(self, name, time, detail):
         super().__init__()
+
+        self.name = name
+        self.time = time
+        self.detail = detail
+
         self.setStyleSheet("""
             QFrame {
                 background-color: #D3D3D3;
@@ -74,12 +151,12 @@ class AttractionRow(QFrame):
         icon.setStyleSheet("background-color: white; border-radius: 5px; border: 1px solid #999;")
         icon.setAlignment(Qt.AlignCenter)
 
-        name_label = QLabel(name)
-        name_label.setStyleSheet("background-color: white; padding: 5px; border-radius: 5px; font-weight: bold;")
+        self.name_label = QLabel(name)
+        self.name_label.setStyleSheet("background-color: white; padding: 5px; border-radius: 5px; font-weight: bold;")
 
-        time_label = QLabel(f"{time}\nmin")
-        time_label.setStyleSheet("color: red; background-color: white; border-radius: 5px; font-size: 10px; padding: 5px 10px;")
-        time_label.setAlignment(Qt.AlignCenter)
+        self.time_label = QLabel(f"{time}\nmin")
+        self.time_label.setStyleSheet("color: red; background-color: white; border-radius: 5px; font-size: 10px; padding: 5px 10px;")
+        self.time_label.setAlignment(Qt.AlignCenter)
 
         check_btn = QPushButton("\u2714")
         check_btn.setFixedSize(35, 35)
@@ -87,14 +164,22 @@ class AttractionRow(QFrame):
         check_btn.clicked.connect(lambda: self.check_out_ride(name, time, str(random.randint(1, int(time)))))
 
         layout.addWidget(icon)
-        layout.addWidget(name_label, stretch=1)
-        layout.addWidget(time_label)
+        layout.addWidget(self.name_label, stretch=1)
+        layout.addWidget(self.time_label)
         layout.addWidget(check_btn)
+
+        self.mousePressEvent = self.open_details
 
     def check_out_ride(self, name, time, place):
         self.signal.emit(time, place)
+    
+    def open_details(self, event):
+        detail = AttractionDialog(self.name, self.time, self.detail, self.window())
+        detail.reserved.connect(self.window().status_info.update_status)
+        detail.exec_()
 
 class TimeDisplay(QFrame):
+
     def __init__(self, time, place):
         super().__init__()
         
@@ -171,10 +256,10 @@ class TimeDisplay(QFrame):
 class MainWindow(QMainWindow):
     #Test data
     rides = [
-        ("The Wheelie Wheel", "12"),
-        ("Thunderdome", "54"),
-        ("Tesla's Fury", "10"),
-        ("Simply the Best", "30")
+        ("The Wheelie Wheel", "12", "The best circular object this side of Thunderdome!"),
+        ("Thunderdome", "54", "The best ride in the wasteland. Now featuring Tina Turner!"),
+        ("Tesla's Fury", "10", "Rated the most scary ride by Thomas Edison"),
+        ("Simply the Best", "30", "A ride that will surely take you down memory lane with classic song after classic song!")
     ]
 
     def __init__(self):
@@ -211,9 +296,20 @@ class MainWindow(QMainWindow):
         list_widget = QWidget()
         list_layout = QVBoxLayout(list_widget)
 
+        action_call = QLabel("Select a ride below to save your spot!")
+        action_call.setStyleSheet("""
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: underline;
+            """)
+        action_call.setAlignment(Qt.AlignHCenter)
+        
+        main_layout.addWidget(action_call)
+
         #Test Attractions
-        for name, time in self.rides:
-            row = AttractionRow(name, time)
+        for name, time, detail in self.rides:
+            row = AttractionRow(name, time, detail)
             row.signal.connect(self.status_info.update_status)
             list_layout.addWidget(row)
         
