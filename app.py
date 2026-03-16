@@ -140,12 +140,13 @@ class AttractionRow(QFrame):
     #Custom signal to pass up the time and place vars from the attraction
     signal = pyqtSignal(str, str)
 
-    def __init__(self, name, time, detail):
+    def __init__(self, name, time, detail, place):
         super().__init__()
 
         self.name = name
         self.time = time
         self.detail = detail
+        self.place = place
 
         self.setStyleSheet("""
             QFrame {
@@ -172,7 +173,7 @@ class AttractionRow(QFrame):
         check_btn = QPushButton("\u2714")
         check_btn.setFixedSize(35, 35)
         check_btn.setStyleSheet("background-color: #7CFF6B; color: white; border-radius: 5px; font-weight: bold;")
-        check_btn.clicked.connect(lambda: self.check_out_ride(name, time, str(random.randint(1, int(time)))))
+        check_btn.clicked.connect(lambda: self.check_out_ride(name, time, place))
 
         layout.addWidget(icon)
         layout.addWidget(self.name_label, stretch=1)
@@ -182,7 +183,7 @@ class AttractionRow(QFrame):
         self.mousePressEvent = self.open_details
 
     def check_out_ride(self, name, time, place):
-        self.signal.emit(str(time), place)
+        self.signal.emit(str(time), str(place))
     
     def open_details(self, event):
         detail = AttractionDialog(self.name, self.time, self.detail, self.window())
@@ -548,9 +549,9 @@ class MainWindow(QMainWindow):
         #     list_layout.addWidget(row)
 
         for row in rides["data"]["rows"]:
-            place = self.request_place_in_line(row["RideID"])
-            est_wait = place["data"]["total"]*5
-            gui = AttractionRow(row["RideName"], est_wait, row["RideDesc"])
+            place = self.request_place_in_line(row["RideID"])["data"]["total"]
+            est_wait = place*5
+            gui = AttractionRow(row["RideName"], est_wait, row["RideDesc"], place)
             gui.setCursor(Qt.PointingHandCursor)
             gui.signal.connect(self.status_info.update_status)
             list_layout.addWidget(gui)
