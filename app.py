@@ -71,6 +71,7 @@ class AttractionDialog(QDialog):
         self.setFixedSize(280, 350)
         self.name = name
         self.time = time
+        self.place = place
         
         self.setStyleSheet("""
             QDialog { 
@@ -137,8 +138,7 @@ class AttractionDialog(QDialog):
 
     def handle_reserve(self):
         # Generate random place and emit signal back to main
-        place = str(random.randint(1, 100))
-        self.reserved.emit(self.time, place)
+        self.reserved.emit(str(self.time), str(self.place))
         self.accept()
 
 class AttractionRow(QFrame):
