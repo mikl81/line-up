@@ -524,6 +524,7 @@ class MainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("border: none; background: transparent;")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
         list_widget = QWidget()
         list_layout = QVBoxLayout(list_widget)
