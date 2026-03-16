@@ -6,7 +6,7 @@ import time
 from  datetime import datetime
 import random
 import zmq
-from auth_service_types import RequestType, prep_request
+from auth_service_types import RequestType, ResultType, prep_request
 
 """
     Confirmation window for removing your place in line
@@ -364,7 +364,7 @@ class LoginFrame(QFrame):
 
     def handle_login(self):
         username = self.username_input.text().strip()
-        password = self.password_input.text()
+        password = self.password_input.text().strip()
 
         if not username or not password:
             self.show_error("Please fill in all fields.")
@@ -382,15 +382,18 @@ class LoginFrame(QFrame):
         socket = context.socket(zmq.REQ)
         socket.connect("tcp://localhost:5555")
 
-        payload = {
-            "req_type" : 1,
-            "req_data" : {
-                "name": username,
-                "secret": password
-            }
-        }
+        req_type = RequestType.VERIFY_CREDENTIAL
 
-        print("Sending request")
+        req = prep_request(req_type, username, password)
+        print(req)
+        socket.send_json(req)
+        result = socket.recv_json()
+        print(result["result_type"])
+        if result["result_type"] == ResultType.VERIFY_SUCCESS:
+            self.error_label.hide()
+            self.login_successful.emit(username)
+        else:
+            self.show_error("Invalid username or password.")
 
 
     def show_error(self, message):
