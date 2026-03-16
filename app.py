@@ -6,6 +6,7 @@ import time
 from  datetime import datetime
 import random
 import zmq
+import json
 from auth_service_types import RequestType, ResultType, prep_request
 
 """
@@ -475,6 +476,10 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        testrides = self.request_ride_data()
+        print(testrides)
+
         self.setWindowTitle("Line-Up")
         self.setFixedSize(320, 500)
         self.setStyleSheet("background-color: #F0F0F0;")
@@ -535,13 +540,13 @@ class MainWindow(QMainWindow):
         
         main_layout.addWidget(action_call)
 
-        #Test Attractions
+        #Attractions
         for name, time, detail in self.rides:
             row = AttractionRow(name, time, detail)
             row.setCursor(Qt.PointingHandCursor)
             row.signal.connect(self.status_info.update_status)
             list_layout.addWidget(row)
-        
+
         list_layout.addStretch()
         scroll.setWidget(list_widget)
         main_layout.addWidget(scroll)
@@ -551,6 +556,24 @@ class MainWindow(QMainWindow):
 
         if dialog.exec_():
             self.status_info.reset_display()
+
+    def request_ride_data(self):
+        context = zmq.Context()
+        socket = context.socket(zmq.REQ)
+        socket.connect("tcp://localhost:5556")
+
+        request = {
+            "action": "select",
+            "table": "rides"
+        }
+
+        socket.send(json.dumps(request).encode("utf-8"))
+
+        response_bytes = socket.recv()
+
+        response = json.loads(response_bytes.decode("utf-8"))
+
+        return response
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
