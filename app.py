@@ -548,8 +548,9 @@ class MainWindow(QMainWindow):
         #     list_layout.addWidget(row)
 
         for row in rides["data"]["rows"]:
-            print(row)
-            gui = AttractionRow(row["RideName"], 100, row["RideDesc"])
+            place = self.request_place_in_line(row["RideID"])
+            est_wait = place["data"]["total"]*5
+            gui = AttractionRow(row["RideName"], est_wait, row["RideDesc"])
             gui.setCursor(Qt.PointingHandCursor)
             gui.signal.connect(self.status_info.update_status)
             list_layout.addWidget(gui)
@@ -582,8 +583,26 @@ class MainWindow(QMainWindow):
 
         return response
     
-    def request_place_in_line(self):
-        pass
+    def request_place_in_line(self, rideId):
+        context = zmq.Context()
+        socket = context.socket(zmq.REQ)
+        socket.connect("tcp://localhost:5557")
+
+        request = {
+            "action": "filtered_statistics",
+            "table": "users_to_rides",
+            "filters": {
+                "RideID": f"{rideId}"
+            }
+        }
+
+        socket.send(json.dumps(request).encode("utf-8"))
+
+        response_bytes = socket.recv()
+
+        response = json.loads(response_bytes.decode("utf-8"))
+
+        return response
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
