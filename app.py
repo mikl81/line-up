@@ -182,7 +182,7 @@ class AttractionRow(QFrame):
         self.mousePressEvent = self.open_details
 
     def check_out_ride(self, name, time, place):
-        self.signal.emit(time, place)
+        self.signal.emit(str(time), place)
     
     def open_details(self, event):
         detail = AttractionDialog(self.name, self.time, self.detail, self.window())
@@ -467,18 +467,17 @@ class HeaderDisplay(QFrame):
 
 class MainWindow(QMainWindow):
     #Test data
-    rides = [
-        ("The Wheelie Wheel", "12", "The best circular object this side of Thunderdome!"),
-        ("Thunderdome", "54", "The best ride in the wasteland. Now featuring Tina Turner!"),
-        ("Tesla's Fury", "10", "Rated the most scary ride by Thomas Edison"),
-        ("Simply the Best", "30", "A ride that will surely take you down memory lane with classic song after classic song!")
-    ]
+    # rides = [
+    #     ("The Wheelie Wheel", "12", "The best circular object this side of Thunderdome!"),
+    #     ("Thunderdome", "54", "The best ride in the wasteland. Now featuring Tina Turner!"),
+    #     ("Tesla's Fury", "10", "Rated the most scary ride by Thomas Edison"),
+    #     ("Simply the Best", "30", "A ride that will surely take you down memory lane with classic song after classic song!")
+    # ]
 
     def __init__(self):
         super().__init__()
-
-        testrides = self.request_ride_data()
-        print(testrides)
+        rides = self.request_ride_data()
+        print(rides)
 
         self.setWindowTitle("Line-Up")
         self.setFixedSize(320, 500)
@@ -541,11 +540,18 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(action_call)
 
         #Attractions
-        for name, time, detail in self.rides:
-            row = AttractionRow(name, time, detail)
-            row.setCursor(Qt.PointingHandCursor)
-            row.signal.connect(self.status_info.update_status)
-            list_layout.addWidget(row)
+        # for name, time, detail in self.rides:
+        #     row = AttractionRow(name, time, detail)
+        #     row.setCursor(Qt.PointingHandCursor)
+        #     row.signal.connect(self.status_info.update_status)
+        #     list_layout.addWidget(row)
+
+        for row in rides["data"]["rows"]:
+            print(row)
+            gui = AttractionRow(row["RideName"], 100, row["RideDesc"])
+            gui.setCursor(Qt.PointingHandCursor)
+            gui.signal.connect(self.status_info.update_status)
+            list_layout.addWidget(gui)
 
         list_layout.addStretch()
         scroll.setWidget(list_widget)
@@ -574,6 +580,9 @@ class MainWindow(QMainWindow):
         response = json.loads(response_bytes.decode("utf-8"))
 
         return response
+    
+    def request_place_in_line(self):
+        pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
