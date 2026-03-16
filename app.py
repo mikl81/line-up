@@ -65,7 +65,7 @@ class ConfirmDialog(QDialog):
 class AttractionDialog(QDialog):
     reserved = pyqtSignal(str, str)
 
-    def __init__(self, name, time, detail, parent=None):
+    def __init__(self, name, time, detail, place, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setFixedSize(280, 350)
@@ -107,6 +107,10 @@ class AttractionDialog(QDialog):
         wait_time.setObjectName("TimeLabel")
         wait_time.setAlignment(Qt.AlignCenter)
 
+        place_display = QLabel(f"Current place: {place}")
+        place_display.setObjectName("TimeLabel")
+        place_display.setAlignment(Qt.AlignCenter)
+
         # Buttons
         btn_layout = QHBoxLayout()
         
@@ -127,6 +131,7 @@ class AttractionDialog(QDialog):
         layout.addWidget(img_placeholder)
         layout.addWidget(description)
         layout.addWidget(wait_time)
+        layout.addWidget(place_display)
         layout.addStretch()
         layout.addLayout(btn_layout)
 
@@ -186,7 +191,7 @@ class AttractionRow(QFrame):
         self.signal.emit(str(time), str(place))
     
     def open_details(self, event):
-        detail = AttractionDialog(self.name, self.time, self.detail, self.window())
+        detail = AttractionDialog(self.name, self.time, self.detail, self.place, self.window())
         detail.reserved.connect(self.window().status_info.update_status)
         detail.exec_()
 
