@@ -1,10 +1,16 @@
 from PyQt5.QtCore import Qt, QSize, pyqtSignal, QTimer
 from PyQt5.QtWidgets import (QApplication, QWidget, QMainWindow, QPushButton, 
-                             QLabel, QVBoxLayout, QHBoxLayout, QFrame, QScrollArea, QDialog)
+                             QLabel, QVBoxLayout, QHBoxLayout, QFrame, QScrollArea, QDialog, QLineEdit)
 import sys
 import time
+from  datetime import datetime
 import random
+import zmq
+from auth_service_types import RequestType, prep_request
 
+"""
+    Confirmation window for removing your place in line
+"""
 class ConfirmDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,9 +44,11 @@ class ConfirmDialog(QDialog):
         btn_layout = QHBoxLayout()
         
         self.yes_btn = QPushButton("Yes, Leave")
+        self.yes_btn.setCursor(Qt.PointingHandCursor)
         self.yes_btn.setStyleSheet("background-color: #F07167; color: white; padding: 8px; border-radius: 5px; font-weight: bold;")
         
         self.no_btn = QPushButton("Cancel")
+        self.no_btn.setCursor(Qt.PointingHandCursor)
         self.no_btn.setStyleSheet("background-color: #969696; color: white; padding: 8px; border-radius: 5px;")
 
         btn_layout.addWidget(self.no_btn)
@@ -102,10 +110,12 @@ class AttractionDialog(QDialog):
         btn_layout = QHBoxLayout()
         
         close_btn = QPushButton("Back")
+        close_btn.setCursor(Qt.PointingHandCursor)
         close_btn.setStyleSheet("background-color: #969696; color: white; padding: 10px; border-radius: 8px;")
         close_btn.clicked.connect(self.reject)
 
         reserve_btn = QPushButton("Join Line")
+        reserve_btn.setCursor(Qt.PointingHandCursor)
         reserve_btn.setStyleSheet("background-color: #7CFF6B; color: #333; padding: 10px; border-radius: 8px; font-weight: bold;")
         reserve_btn.clicked.connect(self.handle_reserve)
 
@@ -251,7 +261,205 @@ class TimeDisplay(QFrame):
         self.seconds = 0
         self.eta_val.setText("N/A")
         self.place_val.setText("N/A")
-     
+
+class LoginFrame(QFrame):
+    login_successful = pyqtSignal(str)  # Emits username on success
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("loginFrame")
+        self.setFixedSize(320, 220)
+        self.setup_ui()
+        self.setup_styles()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(12)
+
+        # Title
+        self.title = QLabel("Sign In")
+        self.title.setObjectName("loginTitle")
+        self.title.setAlignment(Qt.AlignCenter)
+
+        # Username field
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Username")
+
+        # Password field
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Password")
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.returnPressed.connect(self.handle_login)
+
+        # Error label
+        self.error_label = QLabel("")
+        self.error_label.setObjectName("errorLabel")
+        self.error_label.setAlignment(Qt.AlignCenter)
+        self.error_label.hide()
+
+        # Login button
+        self.login_button = QPushButton("Sign In")
+        self.login_button.setCursor(Qt.PointingHandCursor)
+        self.login_button.clicked.connect(self.handle_login)
+
+        layout.addWidget(self.title)
+        layout.addWidget(self.username_input)
+        layout.addWidget(self.password_input)
+        layout.addWidget(self.error_label)
+        layout.addWidget(self.login_button)
+
+    def setup_styles(self):
+        self.setStyleSheet("""
+            QFrame#loginFrame {
+                background-color: palette(window);
+                border: 1px solid palette(mid);
+                border-radius: 8px;
+            }
+
+            QLabel#loginTitle {
+                font-size: 18px;
+                font-weight: bold;
+                color: palette(windowText);
+                border: none;
+            }
+
+            QLabel#errorLabel {
+                color: #e74c3c;
+                font-size: 12px;
+                border: none;
+            }
+
+            QLineEdit {
+                padding: 8px;
+                border: 1px solid palette(mid);
+                border-radius: 4px;
+                background-color: palette(base);
+                color: palette(windowText);
+                font-size: 13px;
+            }
+
+            QLineEdit:focus {
+                border: 1px solid #3498db;
+            }
+
+            QPushButton {
+                padding: 8px;
+                background-color: #7CFF6B;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+
+            QPushButton:pressed {
+                background-color: #2471a3;
+            }
+        """)
+
+    def handle_login(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
+
+        if not username or not password:
+            self.show_error("Please fill in all fields.")
+            return
+
+        # Replace this with your real auth logic
+        # if username == "admin" and password == "password":
+        #     self.error_label.hide()
+        #     self.login_successful.emit(username)
+        # else:
+        #     self.show_error("Invalid username or password.")
+        
+        context = zmq.Context()
+        print("Connecting to auth server")
+        socket = context.socket(zmq.REQ)
+        socket.connect("tcp://localhost:5555")
+
+        payload = {
+            "req_type" : 1,
+            "req_data" : {
+                "name": username,
+                "secret": password
+            }
+        }
+
+        print("Sending request")
+
+
+    def show_error(self, message):
+        self.error_label.setText(message)
+        self.error_label.show()
+
+class HeaderDisplay(QFrame):
+    #convention name and date on the right
+    #user log in on right side
+    def __init__(self) -> None:
+        super().__init__()
+        date = datetime.now()
+        layout = QHBoxLayout(self)
+        left_col = QVBoxLayout()
+
+        self.date_label = QLabel("Date: " + date.strftime("%m/%d/%y"))
+        self.con_name = QLabel("Convention: Starseekers")
+        self.login = QPushButton("User: None")
+
+        self.login.setCursor(Qt.PointingHandCursor)
+
+        self.login.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                padding: 0;
+                margin: 0;
+                color: black;
+                font: inherit;
+                text-align: right;
+            }
+            QPushButton:hover {
+                color: purple;
+                text-decoration:underline;
+            }
+            QPushButton:pressed {
+                background-color: transparent;
+            }
+            QPushButton:focus {
+                outline: none;
+                border: none;
+            }
+        """)
+
+        self.login.clicked.connect(lambda: self.open_login())
+
+        left_col.addWidget(self.date_label)
+        left_col.addWidget(self.con_name)
+        layout.addLayout(left_col)
+        layout.addWidget(self.login)
+
+    def open_login(self):
+        dialog = QDialog(self.window())
+        dialog.setWindowTitle("Login")
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        dialog.setFixedSize(320, 220)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        login_frame = LoginFrame()
+        login_frame.login_successful.connect(lambda username: self.on_login(username, dialog))
+        layout.addWidget(login_frame)
+
+        dialog.exec_()
+
+    def on_login(self, username, dialog):
+        self.login.setText(f"User: {username}")
+        dialog.accept()
 
 class MainWindow(QMainWindow):
     #Test data
@@ -272,13 +480,30 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
+        self.header = HeaderDisplay()
+
+        self.header.setStyleSheet("""
+            QFrame {
+                border: none;
+                border-bottom: 1px solid palette(mid);
+            }
+            QFrame * {
+                border: none;
+            }
+        """)
+
+        main_layout.addWidget(self.header)
+
         status_card = QFrame()
         status_card.setStyleSheet("background-color: #D3D3D3; border-radius: 20px;")
         status_layout = QHBoxLayout(status_card)
 
+
+
         self.status_info = TimeDisplay("N/A", "N/A")
 
         leave_btn = QPushButton("Leave\nLine")
+        leave_btn.setCursor(Qt.PointingHandCursor)
         leave_btn.setFixedSize(80, 80)
         leave_btn.setStyleSheet("background-color: #F07167; color: white; border-radius: 40px; font-weight: bold;")
         leave_btn.clicked.connect(self.confirm_leave)
@@ -310,6 +535,7 @@ class MainWindow(QMainWindow):
         #Test Attractions
         for name, time, detail in self.rides:
             row = AttractionRow(name, time, detail)
+            row.setCursor(Qt.PointingHandCursor)
             row.signal.connect(self.status_info.update_status)
             list_layout.addWidget(row)
         
